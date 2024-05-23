@@ -1,0 +1,176 @@
+---
+title: Create an S3 Bucket Policy in Terraform & Pulumi
+meta_desc: |
+     A comprehensive guide to create an S3 bucket policy in Terraform and Pulumi.
+
+type: what-is
+page_title: Create an S3 Bucket Policy in Terraform & Pulumi
+---
+
+## Introduction
+
+We firmly believe in the unique advantages Pulumi's open source engine offers, even for straightforward scenarios like setting up an AWS S3 bucket policy. While this is a straightforward task in Terraform, Pulumi elevates how you can create and manage infrastructure by harnessing the power and flexibility of general-purpose programming languages. 
+
+With Pulumi, you can leverage your IDE's IntelliSense for auto-completion and inline documentation, making your development process more efficient. Additionally, the ability to use conditional logic and loops in your infrastructure code opens up a world of possibilities. Imagine integrating your favorite language's ecosystem, complete with libraries, package managers, and build tools, into your infrastructure management.
+
+In this guide, we'll demonstrate how to set up an S3 bucket policy using HCL with Terraform. Following that, we'll showcase how Pulumi takes this a step further, enabling you to leverage advanced coding techniques and tools. Let's get started.
+
+## Overview of creating an AWS S3 Bucket Policy
+
+An S3 bucket policy is a JSON document that defines access permissions for your S3 bucket. It is crucial for specifying who can access your bucket and what actions can be performed. Properly configured bucket policies enhance the security and compliance posture of your applications. For more details on S3 bucket policies, refer to the [official AWS documentation](https://docs.aws.amazon.com/AmazonS3/latest/dev/using-iam-policies.html).
+
+### How do I create an S3 bucket policy with Terraform
+
+{{% notes type="info" %}}
+This HCL example was generated using Pulumi AI and you can use Pulumi AI to create infrastructure as code in Python, TypeScript, JavaScript, Go, C#, YAML and Terraform's HCL for free! [Give Pulumi AI](https://www.pulumi.com/ai/) a try to add more of your specific requirements to this code, or convert between HCL and our supported languages.
+{{% /notes %}}
+
+Here is an example of creating an S3 bucket policy using Terraform:
+
+```hcl
+provider "aws" {
+  region = "us-west-2"
+}
+
+resource "aws_s3_bucket" "example" {
+  bucket = "my-unique-bucket-name"
+}
+
+resource "aws_s3_bucket_policy" "example" {
+  bucket = aws_s3_bucket.example.bucket
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Principal = "*",
+        Action   = "s3:GetObject",
+        Resource = "${aws_s3_bucket.example.arn}/*"
+      }
+    ]
+  })
+}
+```
+
+### How do I create an S3 bucket policy with Pulumi
+
+Now, let's see how to achieve the same goal with Pulumi:
+
+```typescript
+import * as pulumi from "@pulumi/pulumi";
+import * as aws from "@pulumi/aws";
+
+const bucket = new aws.s3.Bucket("example", {
+    bucket: "my-unique-bucket-name",
+});
+
+const bucketPolicy = new aws.s3.BucketPolicy("examplePolicy", {
+    bucket: bucket.bucket,
+    policy: bucket.bucket.apply(bucketName => JSON.stringify({
+        Version: "2012-10-17",
+        Statement: [{
+            Effect: "Allow",
+            Principal: "*",
+            Action: "s3:GetObject",
+            Resource: `arn:aws:s3:::${bucketName}/*`,
+        }],
+    })),
+});
+```
+
+In this Pulumi code snippet, we first create an S3 bucket and then apply a bucket policy to it. Unlike Terraform, Pulumi uses a familiar programming language (TypeScript in this case), which offers more flexibility and control. For more details on Pulumi's AWS S3 implementation, refer to the [Pulumi documentation](https://www.pulumi.com/docs/).
+
+## Superpower your infrastructure as code with Pulumi
+
+Pulumi presents several advantages over Terraform and we'll share a couple examples:
+
+1. **Real Programming Languages:**
+   Pulumi uses real programming languages (TypeScript, Python, etc.) for IaC, allowing for loops, conditionals, and other dynamic constructs which are cumbersome in Terraform.
+
+2. **Rich SDKs and Native Cloud Libraries:**
+   Pulumi provides SDKs and native support for cloud services, offering a more integrated and seamless development experience.
+
+3. **Enhanced CI/CD Integrations:**
+   Pulumi simplifies integrations with CI/CD pipelines, making it easier to manage deployments.
+
+### Dynamically generate a list of IP addresses with S3 bucket polocies
+
+Imagine you want to dynamically generate a list of IP addresses to include in your bucket policy:
+
+```typescript
+import * as pulumi from "@pulumi/pulumi";
+import * as aws from "@pulumi/aws";
+
+const allowedIps = ["192.168.0.1/32", "172.16.0.1/32"];
+
+const bucket = new aws.s3.Bucket("example", {
+    bucket: "my-unique-bucket-name",
+});
+
+const bucketPolicy = new aws.s3.BucketPolicy("examplePolicy", {
+    bucket: bucket.bucket,
+    policy: bucket.bucket.apply(bucketName => JSON.stringify({
+        Version: "2012-10-17",
+        Statement: allowedIps.map(ip => ({
+            Effect: "Allow",
+            Principal: "*",
+            Action: "s3:GetObject",
+            Resource: `arn:aws:s3:::${bucketName}/*`,
+            Condition: {
+                IpAddress: {
+                    "aws:SourceIp": ip
+                }
+            }
+        }))
+    })),
+});
+```
+
+This code dynamically generates policy statements for each IP in the `allowedIps` array. Doing the same in Terraform requires verbose and less flexible workarounds with `count` and complex structures.
+
+### Add external data sources with S3 bucket policies
+
+Another powerful use case is incorporating external data sources such as fetching a list of users from an API and generating policy based on that:
+
+```typescript
+import * as pulumi from "@pulumi/pulumi";
+import * as aws from "@pulumi/aws";
+import fetch from "node-fetch";
+
+const bucket = new aws.s3.Bucket("example", {
+    bucket: "my-unique-bucket-name",
+});
+
+const users = pulumi.output(fetch("https://api.example.com/users").then(res => res.json()));
+
+const bucketPolicy = new aws.s3.BucketPolicy("examplePolicy", {
+    bucket: bucket.bucket,
+    policy: pulumi.all([bucket.bucket, users]).apply(([bucketName, userData]) => JSON.stringify({
+        Version: "2012-10-17",
+        Statement: userData.map(user => ({
+            Effect: "Allow",
+            Principal: { AWS: user.arn },
+            Action: "s3:GetObject",
+            Resource: `arn:aws:s3:::${bucketName}/*`
+        }))
+    })),
+});
+```
+
+Here, we are fetching external data from an API and using it to generate the policy. This level of integration is straightforward in Pulumi but complex and less intuitive in Terraform.
+
+## Best practices for creating an S3 bucket policy
+
+When creating an S3 bucket policy, consider these best practices:
+
+1. **Principle of Least Privilege:** Always grant the least amount of access required.
+2. **Use Policies Effectively:** Consolidate permissions into fewer policies to simplify management.
+3. **Condition Keys:** Use condition keys (e.g., IP address conditions) to add an extra layer of security.
+4. **Version Control:** Keep your IaC code in version control to manage changes and collaboration efficiently.
+
+## Conclusion
+
+In this tutorial, we explored the creation of an S3 bucket policy using both Terraform and Pulumi. We highlighted the flexibility and advanced capabilities that Pulumi offers, making it a powerful tool for managing cloud infrastructure.
+
+Pulumi's use of real programming languages, better SDKs, and enhanced CI/CD integrations make it a versatile and powerful choice for modern infrastructure as code practices. Try Pulumi today to supercharge your cloud infrastructure management!
